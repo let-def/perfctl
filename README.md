@@ -40,17 +40,25 @@ let () = Perfctl.disable ()
 
 Then run your program with `perfctl record -- ./myprogram.exe`
 
-### Example test program:
+Example test program:
 
 ```ocaml
+(* Profile multiple sections by calling enable/disable multiple times *)
 let () = not_in_profile 1_000_000
 
 let () = Perfctl.enable ()
-
 let () = in_profile 1_000_000
-
 let () = Perfctl.disable ()
 
+(* Code not profiled *)
+let () = not_in_profile 1_000_000
+
+(* Profile another section *)
+let () = Perfctl.enable ()
+let () = in_profile 1_000_000
+let () = Perfctl.disable ()
+
+(* Code not profiled *)
 let () = not_in_profile 1_000_000
 ```
 
