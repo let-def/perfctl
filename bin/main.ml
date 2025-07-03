@@ -24,32 +24,43 @@
 
 let usage oc =
   Printf.fprintf oc
-    "Usage: %s <subcommand> <args> -- <command line>\n\n\
+    "Usage: %s [-e] [record | stat] <perf args> <command line>\n\n\
+    \n\
+    Options:\n\
+    \  -e, --enabled Start profiling immediately\n\n\
     Trace a command with perf such that profiling can be controlled from OCaml's perfctl library.\n\
     For instance:\n\
-    \  perfctl record -- my-ocaml-command\n\
-    \  perfctl stat -- my-ocaml-command\n\
-    \  ...\n"
+    \  perfctl record my-ocaml-command\n\
+    \  perfctl stat my-ocaml-command\n"
     Sys.argv.(0)
 
+let start_enabled = ref false
+
 (* Extract command line arguments *)
-let perf_args, command =
-  let rec loop acc = function
+let perf_action, perf_args =
+  let rec loop = function
     | ["-h"] | ["-help"] | ["--help"] ->
       usage stdout;
       exit 0
+
+    | ("-e" | "--enabled") :: rest ->
+      start_enabled := true;
+      loop rest
+
+    | ("record" | "stat" as action) :: args ->
+      (action, args)
+
+    | x :: _ ->
+      prerr_endline ("perfctl: unexpected argument " ^ x);
+      usage stderr;
+      exit 1
 
     | [] ->
       usage stderr;
       exit 1
 
-    | "--" :: command ->
-      (List.rev acc, command)
-
-    | x :: xs ->
-      loop (x :: acc) xs
   in
-  loop [] (List.tl (Array.to_list Sys.argv))
+  loop (List.tl (Array.to_list Sys.argv))
 
 (* Create file descriptors *)
 
@@ -68,17 +79,21 @@ let () = Unix.putenv "PERFCTL_ACK_FD" (string_of_int (int_of_file_descr fd_ack_r
 (* Exec perf *)
 
 let control_arg = [
-  "--delay=-1";
   "--control";
   Printf.sprintf "fd:%d,%d"
     (int_of_file_descr fd_ctl_read)
     (int_of_file_descr fd_ack_write)
 ]
 
+let control_arg =
+  if !start_enabled
+  then control_arg
+  else "--delay=-1" :: control_arg
+
 let () =
   try
     Unix.execvp "perf"
-      (Array.of_list (List.flatten [["perf"]; perf_args; control_arg; ["--"]; command]))
+      (Array.of_list (List.flatten [["perf"; perf_action]; control_arg; perf_args]))
   with
   | Unix.Unix_error(Unix.ENOENT, "execvp", "perf") ->
     Printf.eprintf "Cannot execute 'perf'. Please make sure the command is available.\n";

@@ -10,7 +10,7 @@ A wrapper and library to control 'perf' from the program being profiled.
 
 - Dynamically enable/disable profiling from within the program
 - Block until profiling state changes are confirmed
-- Lightweight wrapper around Linux `perf`
+- Lightweight wrapper around Linux `perf record` and `perf stat` commands
 - Works with OCaml programs (can be adapted for other languages)
 
 ## Installation
@@ -38,15 +38,20 @@ let () = Perfctl.enable ()
 let () = Perfctl.disable ()
 ```
 
-Then run your program with `perfctl record -- ./myprogram.exe`
+Then run your program with `perfctl record ./myprogram.exe`.
+
+By default profiling is disabled until a call to `Perfctl.enable ()`. Pass the flag `-e`/`--enabled` to `perfctl` for the opposite behavior: start with profiling enabled until a call to `Perfctl.disable ()`.
 
 Example test program:
 
 ```ocaml
 (* Profile multiple sections by calling enable/disable multiple times *)
-let () = not_in_profile 1_000_000
+
+(* Profiled only if `perfctl` was invoked with `-e` flag *)
+let () = maybe_in_profile 1_000_000
 
 let () = Perfctl.enable ()
+(* Profiled when running under perfctl *)
 let () = in_profile 1_000_000
 let () = Perfctl.disable ()
 
