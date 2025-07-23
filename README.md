@@ -17,7 +17,7 @@ A wrapper and library to control 'perf' from the program being profiled.
 
 Install from OPAM:
 ```bash
-opam install perfctl
+opam pin add https://github.com/let-def/perfctl.git
 ```
 
 ## Usage
